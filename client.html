@@ -1,110 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SPC Chart with WebSocket</title>
+    <title>Preci-Touch SPC Chart</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
-        #status { margin-bottom: 10px; }
-        #spcChart { max-width: 100%; height: 400px; }
+        #log { border: 1px solid #ccc; height: 250px; overflow-y: scroll; padding: 10px; background: #f9f9f9; }
+        input[type=text] { width: 300px; padding: 8px; }
+        button { padding: 8px 12px; margin-left: 5px; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<h2>SPC Chart - Live Data</h2>
+<h2>SPC Chart WebSocket Client</h2>
+
 <div id="status">Connecting...</div>
-<canvas id="spcChart"></canvas>
+
+<div>
+    <input type="text" id="msgInput" placeholder="Type your message here" />
+    <button onclick="sendMessage()">Send Message</button>
+</div>
+
+<h3>Log:</h3>
+<div id="log"></div>
 
 <script>
-    const status = document.getElementById('status');
-    const ctx = document.getElementById('spcChart').getContext('2d');
-
-    // Initial empty data for chart - fixed 50 points
-    const maxPoints = 50;
-    let dataPoints = Array(maxPoints).fill(null);
-
-    // Chart.js config
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array.from({length: maxPoints}, (_, i) => i + 1),
-            datasets: [{
-                label: 'SPC Value',
-                data: dataPoints,
-                borderColor: 'black',
-                backgroundColor: 'red',
-                fill: false,
-                tension: 0.3,
-                pointRadius: 4,
-                pointBackgroundColor: 'red',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            animation: false,
-            scales: {
-                y: {
-                    min: 0,
-                    max: 22,
-                    ticks: {
-                        stepSize: 2,
-                        callback: function(value) {
-                            // custom ticks for colored bands could be added here
-                            return value;
-                        }
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Sample Number'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true
-                }
-            }
-        }
-    });
-
-    // WebSocket connection
     let ws;
+    const log = document.getElementById("log");
+    const status = document.getElementById("status");
+
+    function logMessage(message) {
+        const p = document.createElement("p");
+        p.textContent = message;
+        log.appendChild(p);
+        log.scrollTop = log.scrollHeight;
+    }
 
     function connect() {
+        // ✅ Replace this IP with your actual PC IP address
         ws = new WebSocket("ws://192.168.0.110:8766");
 
-
         ws.onopen = () => {
-            status.textContent = 'Connected to WebSocket server';
+            status.textContent = "✅ Connected to server";
+            logMessage("Connected to server");
         };
 
         ws.onmessage = (event) => {
-            // Assume server sends single number as string, e.g. "20.01"
-            const value = parseFloat(event.data);
-            if (!isNaN(value)) {
-                // Push new value, remove oldest to maintain fixed length
-                dataPoints.push(value);
-                if (dataPoints.length > maxPoints) {
-                    dataPoints.shift();
-                }
-
-                // Update chart data
-                chart.data.datasets[0].data = dataPoints;
-                chart.update();
-            }
+            logMessage("📩 Received from server: " + event.data);
         };
 
         ws.onclose = () => {
-            status.textContent = 'Disconnected, retrying...';
-            setTimeout(connect, 3000);
+            status.textContent = "❌ Disconnected";
+            logMessage("Disconnected from server");
+            setTimeout(connect, 3000); // Try to reconnect
         };
 
-        ws.onerror = (err) => {
-            status.textContent = 'WebSocket error';
-            console.error('WebSocket error:', err);
+        ws.onerror = (error) => {
+            logMessage("⚠️ Error: " + error.message);
         };
+    }
+
+    function sendMessage() {
+        const input = document.getElementById("msgInput");
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(input.value);
+            logMessage("Sent: " + input.value);
+            input.value = "";
+        } else {
+            alert("WebSocket is not connected.");
+        }
     }
 
     connect();
