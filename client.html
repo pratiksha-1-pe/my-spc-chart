@@ -73,7 +73,8 @@
     let ws;
 
     function connect() {
-        ws = new WebSocket('ws://localhost:8766');
+        ws = new WebSocket("ws://192.168.0.110:8766");
+
 
         ws.onopen = () => {
             status.textContent = 'Connected to WebSocket server';
