@@ -1,77 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Preci-Touch SPC Chart</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        #log { border: 1px solid #ccc; height: 250px; overflow-y: scroll; padding: 10px; background: #f9f9f9; }
-        input[type=text] { width: 300px; padding: 8px; }
-        button { padding: 8px 12px; margin-left: 5px; }
-    </style>
+  <title>Preci-Touch</title>
 </head>
 <body>
-
-<h2>SPC Chart WebSocket Client</h2>
-
-<div id="status">Connecting...</div>
-
-<div>
-    <input type="text" id="msgInput" placeholder="Type your message here" />
-    <button onclick="sendMessage()">Send Message</button>
-</div>
-
-<h3>Log:</h3>
-<div id="log"></div>
-
-<script>
-    let ws;
-    const log = document.getElementById("log");
+  <h2>WebSocket Client</h2>
+  <div id="status">Connecting...</div>
+  <script>
     const status = document.getElementById("status");
+    const ws = new WebSocket("ws://192.168.0.110:8766");
 
-    function logMessage(message) {
-        const p = document.createElement("p");
-        p.textContent = message;
-        log.appendChild(p);
-        log.scrollTop = log.scrollHeight;
-    }
+    ws.onopen = () => {
+      status.innerText = "Connected to Server ✅";
+      ws.send("Hello from Preci-Touch!");
+    };
 
-    function connect() {
-        // ✅ Replace this IP with your actual PC IP address
-        ws = new WebSocket("ws://192.168.0.110:8766");
+    ws.onmessage = (e) => {
+      const p = document.createElement("p");
+      p.textContent = "Server: " + e.data;
+      document.body.appendChild(p);
+    };
 
-        ws.onopen = () => {
-            status.textContent = "✅ Connected to server";
-            logMessage("Connected to server");
-        };
+    ws.onerror = (e) => {
+      status.innerText = "WebSocket Error ❌";
+    };
 
-        ws.onmessage = (event) => {
-            logMessage("📩 Received from server: " + event.data);
-        };
-
-        ws.onclose = () => {
-            status.textContent = "❌ Disconnected";
-            logMessage("Disconnected from server");
-            setTimeout(connect, 3000); // Try to reconnect
-        };
-
-        ws.onerror = (error) => {
-            logMessage("⚠️ Error: " + error.message);
-        };
-    }
-
-    function sendMessage() {
-        const input = document.getElementById("msgInput");
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(input.value);
-            logMessage("Sent: " + input.value);
-            input.value = "";
-        } else {
-            alert("WebSocket is not connected.");
-        }
-    }
-
-    connect();
-</script>
-
+    ws.onclose = () => {
+      status.innerText = "Disconnected ❌";
+    };
+  </script>
 </body>
 </html>
