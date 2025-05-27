@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SPC Chart with WebSocket</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #status { margin-bottom: 10px; }
+        #spcChart { max-width: 100%; height: 400px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h2>SPC Chart - Live Data</h2>
+<div id="status">Connecting...</div>
+<canvas id="spcChart"></canvas>
+
+<script>
+    const status = document.getElementById('status');
+    const ctx = document.getElementById('spcChart').getContext('2d');
+
+    // Initial empty data for chart - fixed 50 points
+    const maxPoints = 50;
+    let dataPoints = Array(maxPoints).fill(null);
+
+    // Chart.js config
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: maxPoints}, (_, i) => i + 1),
+            datasets: [{
+                label: 'SPC Value',
+                data: dataPoints,
+                borderColor: 'black',
+                backgroundColor: 'red',
+                fill: false,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: 'red',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            animation: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 22,
+                    ticks: {
+                        stepSize: 2,
+                        callback: function(value) {
+                            // custom ticks for colored bands could be added here
+                            return value;
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Sample Number'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true
+                }
+            }
+        }
+    });
+
+    // WebSocket connection
+    let ws;
+
+    function connect() {
+        ws = new WebSocket('ws://localhost:8766');
+
+        ws.onopen = () => {
+            status.textContent = 'Connected to WebSocket server';
+        };
+
+        ws.onmessage = (event) => {
+            // Assume server sends single number as string, e.g. "20.01"
+            const value = parseFloat(event.data);
+            if (!isNaN(value)) {
+                // Push new value, remove oldest to maintain fixed length
+                dataPoints.push(value);
+                if (dataPoints.length > maxPoints) {
+                    dataPoints.shift();
+                }
+
+                // Update chart data
+                chart.data.datasets[0].data = dataPoints;
+                chart.update();
+            }
+        };
+
+        ws.onclose = () => {
+            status.textContent = 'Disconnected, retrying...';
+            setTimeout(connect, 3000);
+        };
+
+        ws.onerror = (err) => {
+            status.textContent = 'WebSocket error';
+            console.error('WebSocket error:', err);
+        };
+    }
+
+    connect();
+</script>
+
+</body>
+</html>
